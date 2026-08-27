@@ -128,8 +128,11 @@ bool Uc8279Driver::displayStart(EpdBus& bus, const uint8_t* fb, const uint8_t* p
   // first paint, a forced resync, and while the boot initial-full budget is
   // unspent (so the first content screen after boot is a real clear, since
   // CrossPoint paints home with FAST); DU only for a Fast request with a baseline.
-  const bool useGc = (mode != RefreshMode::Fast) || !_oldPlaneValid || _forceFullSyncNext ||
-                     _initialFullsRemaining > 0;
+  // CrossMosa v172（bench 候選一）：Half 不再落到會閃黑的 GC，改走 BwMid（scrub）。
+  // GC 仍保留給：Full、首繪、強制重同步、開機初繪預算未花完 —— 這些要的是「真清潔」。
+  const bool forceGc = !_oldPlaneValid || _forceFullSyncNext || _initialFullsRemaining > 0;
+  const bool useGc = forceGc || (mode == RefreshMode::Full);
+  const bool useMid = !useGc && (mode == RefreshMode::Half);
 
   bus.cmd(CMD_PARTIAL_IN);  // enter the full-panel PTL window set in init
 
@@ -148,8 +151,8 @@ bool Uc8279Driver::displayStart(EpdBus& bus, const uint8_t* fb, const uint8_t* p
   // to the AA pre-conditioning pass (FUN_42015944), not plain GC/DU refreshes.
   bus.cmd(CMD_VCOM_DATA_INTERVAL);
   bus.data(_firstRefresh ? kUc8279X3_CdiFirst : kUc8279X3_CdiLater);
-  loadBank(bus, useGc ? kUc8279X3_BwGc : kUc8279X3_BwDu);
-  _pendingUsedGc = useGc;
+  loadBank(bus, useGc ? kUc8279X3_BwGc : (useMid ? kUc8279X3_BwMid : kUc8279X3_BwDu));
+  _pendingUsedGc = useGc;  // Mid 不花初繪預算（它不是真清潔）
 
   if (!_isScreenOn) {
     bus.cmd(CMD_POWER_ON);
