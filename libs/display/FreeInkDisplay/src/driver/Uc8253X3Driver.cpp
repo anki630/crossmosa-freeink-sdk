@@ -172,6 +172,7 @@ bool Uc8253X3Driver::displayStart(EpdBus& bus, const uint8_t* fb, const uint8_t*
   const bool doFullSync =
       (!fastMode && !halfMode) || !_redRamSynced || _initialFullSyncsRemaining > 0 || forcedFullSync;
   const bool doHalfSync = halfMode && !doFullSync;
+  _lastBank = doFullSync ? 1 : (doHalfSync ? 3 : 2);
   _grayState.lastBaseWasPartial = !doFullSync;
 
   if (doFullSync) {

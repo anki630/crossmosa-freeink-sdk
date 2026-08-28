@@ -216,6 +216,8 @@ class FreeInkDisplay {
   uint8_t lastRefreshBank() const;
   // displayGrayBuffer(..., factoryMode=true) is a real absolute 4-level path here.
   bool supportsAbsoluteGrayscale() const;
+  // Panel driver vouches for its no-resync Half as the periodic ghost clean.
+  bool prefersScrubClean() const;
 
   // True when the runtime-selected panel is the Xteink X3 (X4 returns false).
   bool isX3Mode() const { return _panelSel == PanelSel::X3; }

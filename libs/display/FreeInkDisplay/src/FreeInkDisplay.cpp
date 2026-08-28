@@ -866,6 +866,8 @@ uint8_t FreeInkDisplay::lastRefreshBank() const { return _driver ? _driver->last
 
 bool FreeInkDisplay::supportsAbsoluteGrayscale() const { return _driver && _driver->supportsAbsoluteGrayscale(); }
 
+bool FreeInkDisplay::prefersScrubClean() const { return _driver && _driver->prefersScrubClean(); }
+
 void FreeInkDisplay::requestCompleteWaveformNextRefresh() {
   if (_driver) _driver->requestCompleteWaveformNextRefresh();
 }

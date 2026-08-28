@@ -80,6 +80,11 @@ class Uc8253X3Driver : public PanelDriver {
 
   void requestResync(uint8_t settlePasses) override;
   void skipInitialResync() override;
+  // _half scrub (WW==BW, WB==BB, 50 frames) was the periodic clean of
+  // CrossMosa v55–v130 on this glass via the blocking display(); the
+  // displayStart/displayFinish async split on this path is unverified.
+  bool prefersScrubClean() const override { return true; }
+  uint8_t lastRefreshBank() const override { return _lastBank; }
 
  private:
   void initController(EpdBus& bus);
@@ -96,6 +101,7 @@ class Uc8253X3Driver : public PanelDriver {
 
   bool _isScreenOn = false;
   bool _redRamSynced = false;
+  uint8_t _lastBank = 0;  // 1 full, 2 fast, 3 half/scrub — see lastRefreshBank
   bool _inGrayscaleMode = false;
   uint8_t _initialFullSyncsRemaining = 0;
   bool _forceFullSyncNext = false;

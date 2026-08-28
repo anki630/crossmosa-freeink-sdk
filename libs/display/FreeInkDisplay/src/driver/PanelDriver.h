@@ -143,6 +143,12 @@ class PanelDriver {
   // whose planes are level codes (UC8279 X3 XTH4). Other drivers treat
   // factoryMode differently (or ignore it) and must not be fed level-coded planes.
   virtual bool supportsAbsoluteGrayscale() const { return false; }
+  // True when a Half refresh WITHOUT a resync request runs a state-driven
+  // scrub bank that is validated on hardware as the periodic ghost clean
+  // (UC8253 X3 _half: shipped v55–v130). Lets the host default to the
+  // non-flashing clean on that panel while newer panels keep the full GC until
+  // their bank is benched. (CrossMosa v186.)
+  virtual bool prefersScrubClean() const { return false; }
   virtual void requestCompleteWaveformNextRefresh() {}
   // Interrupted-refresh cutoff tuning (ED2208: where the gate scan freezes).
   virtual void setFastRefreshCutoffMs(uint16_t ms) { (void)ms; }
