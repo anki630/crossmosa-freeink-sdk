@@ -46,6 +46,11 @@ class Uc8279Driver : public PanelDriver {
 
   void requestResync(uint8_t settlePasses) override;
   void skipInitialResync() override;
+  // CrossMosa v185 bench: 0 = kUc8279X3_XtfAa (stock-faithful remap), 1.. =
+  // kUc8279X3_XtfAaVariants[variant-1]; out-of-range falls back to 0.
+  void setGrayscaleVariant(uint8_t variant) override;
+  uint8_t lastRefreshBank() const override { return _lastBank; }
+  bool supportsAbsoluteGrayscale() const override { return true; }
 
   // --- 4-level grayscale / anti-aliasing (mirrors the UC8253 X3 sibling) ---
   // Two 1bpp planes (LSB -> DTM1/old, MSB -> DTM2/new) encode 4 levels; the
@@ -69,7 +74,9 @@ class Uc8279Driver : public PanelDriver {
   // Load a 5-table command-prefixed waveform bank (BW_GC/BW_DU/XTF_PRE_BW_MID)
   // into LUT registers 0x20-0x24: byte 0 of each table is the register id.
   void loadBank(EpdBus& bus, const uint8_t (*bank)[43]);
-  // Load the raw (non-prefixed) 49-byte XTF_AA grayscale bank: 0x20+i then table.
+  // Load a raw (non-prefixed) 49-byte grayscale bank (XTF_AA variants / XTH4):
+  // 0x20+i then table.
+  void loadRawBank(EpdBus& bus, const uint8_t (*bank)[49]);
   void loadXtfAa(EpdBus& bus);
   // Blocking PON -> DRF -> wait (-> POF) used by the grayscale paths.
   void triggerGrayRefresh(EpdBus& bus, bool turnOff);
@@ -99,6 +106,8 @@ class Uc8279Driver : public PanelDriver {
   // means gray planes were written over DTM1/DTM2 (no valid B/W baseline).
   bool _inGrayscaleMode = false;
   bool _lsbValid = false;
+  uint8_t _aaVariant = 0;  // see setGrayscaleVariant
+  uint8_t _lastBank = 0;   // see lastRefreshBank
 
   // Async split state (see Uc8253X3Driver for the contract).
   bool _pendingRefresh = false;

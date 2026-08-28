@@ -858,6 +858,14 @@ void FreeInkDisplay::skipInitialResync() {
   if (_driver) _driver->skipInitialResync();
 }
 
+void FreeInkDisplay::setGrayscaleVariant(uint8_t variant) {
+  if (_driver) _driver->setGrayscaleVariant(variant);
+}
+
+uint8_t FreeInkDisplay::lastRefreshBank() const { return _driver ? _driver->lastRefreshBank() : 0; }
+
+bool FreeInkDisplay::supportsAbsoluteGrayscale() const { return _driver && _driver->supportsAbsoluteGrayscale(); }
+
 void FreeInkDisplay::requestCompleteWaveformNextRefresh() {
   if (_driver) _driver->requestCompleteWaveformNextRefresh();
 }

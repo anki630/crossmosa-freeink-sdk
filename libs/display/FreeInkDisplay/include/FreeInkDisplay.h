@@ -209,6 +209,13 @@ class FreeInkDisplay {
   // banks; see Uc8253X3Driver. No effect on X4.
   void setFastGrayscaleLut(bool fast) { _fastGrayscaleLut = fast; }
   bool getFastGrayscaleLut() const { return _fastGrayscaleLut; }
+  // Select an alternate grayscale waveform bank on drivers that carry several
+  // (UC8279 X3 bench variants); 0 = default. Call after begin().
+  void setGrayscaleVariant(uint8_t variant);
+  // Bank used by the most recent B/W refresh (0 n/a, 1 GC, 2 DU, 3 mid/scrub).
+  uint8_t lastRefreshBank() const;
+  // displayGrayBuffer(..., factoryMode=true) is a real absolute 4-level path here.
+  bool supportsAbsoluteGrayscale() const;
 
   // True when the runtime-selected panel is the Xteink X3 (X4 returns false).
   bool isX3Mode() const { return _panelSel == PanelSel::X3; }

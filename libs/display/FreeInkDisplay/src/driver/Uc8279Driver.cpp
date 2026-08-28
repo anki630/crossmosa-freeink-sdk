@@ -58,14 +58,24 @@ void Uc8279Driver::loadBank(EpdBus& bus, const uint8_t (*bank)[43]) {
   }
 }
 
-void Uc8279Driver::loadXtfAa(EpdBus& bus) {
-  // Raw (non-prefixed) 49-byte AA tables: send the register 0x20+t, then the
+void Uc8279Driver::loadRawBank(EpdBus& bus, const uint8_t (*bank)[49]) {
+  // Raw (non-prefixed) 49-byte tables: send the register 0x20+t, then the
   // whole table (FUN_42013be0).
   for (int t = 0; t < 5; t++) {
     bus.cmd(static_cast<uint8_t>(CMD_LUT_VCOM + t));
-    bus.data(kUc8279X3_XtfAa[t], 49);
+    bus.data(bank[t], 49);
   }
 }
+
+void Uc8279Driver::loadXtfAa(EpdBus& bus) {
+  const uint8_t (*bank)[49] = kUc8279X3_XtfAa;
+  if (_aaVariant >= 1 && _aaVariant <= kUc8279X3_XtfAaVariantCount) {
+    bank = kUc8279X3_XtfAaVariants[_aaVariant - 1];
+  }
+  loadRawBank(bus, bank);
+}
+
+void Uc8279Driver::setGrayscaleVariant(uint8_t variant) { _aaVariant = variant; }
 
 void Uc8279Driver::grayWindowIn(EpdBus& bus) {
   // PTIN + the full-panel PTL (same 792x528 window the init sets): X 0..791,
@@ -153,6 +163,7 @@ bool Uc8279Driver::displayStart(EpdBus& bus, const uint8_t* fb, const uint8_t* p
   bus.data(_firstRefresh ? kUc8279X3_CdiFirst : kUc8279X3_CdiLater);
   loadBank(bus, useGc ? kUc8279X3_BwGc : (useMid ? kUc8279X3_BwMid : kUc8279X3_BwDu));
   _pendingUsedGc = useGc;  // Mid 不花初繪預算（它不是真清潔）
+  _lastBank = useGc ? 1 : (useMid ? 3 : 2);
 
   if (!_isScreenOn) {
     bus.cmd(CMD_POWER_ON);
@@ -285,17 +296,25 @@ void Uc8279Driver::writeGrayscalePlaneStrip(EpdBus& bus, GrayPlane plane, const 
 void Uc8279Driver::displayGray(EpdBus& bus, const uint8_t* fb, bool turnOff, const unsigned char* lut,
                                bool factoryMode) {
   (void)fb;
-  (void)lut;  // waveform is the built-in XTF_AA bank
+  (void)lut;  // waveform is a built-in bank (XTF_AA nudge, or XTH4 absolute)
   if (!_lsbValid) return;
   // Differential grayscale leaves the gray bank/planes loaded, so the next B/W
-  // turn must revert first; factory absolute mode self-cleans.
+  // turn must revert first. factoryMode = the stock XTH4 ABSOLUTE 4-gray bank
+  // (CrossMosa v185 bench, sleep wallpaper): every pixel is driven from a
+  // white/black reset to its level, so nothing depends on the prior frame and
+  // no revert is needed — but the planes are level codes, not a B/W baseline,
+  // so _oldPlaneValid drops below either way (next B/W refresh is a GC rebase).
   _inGrayscaleMode = !factoryMode;
   // PSR REG=1 (external LUT) is already set from init and untouched by the B/W
   // path, so just load the AA bank + CDI and refresh (FUN_42015108/42013be0).
   // The refresh MUST run in the partial window (like the plane writes); also
   // resets PTL to full after any per-strip writeGrayscalePlaneStrip windows.
   grayWindowIn(bus);
-  loadXtfAa(bus);
+  if (factoryMode) {
+    loadRawBank(bus, kUc8279X3_Xth4);
+  } else {
+    loadXtfAa(bus);
+  }
   bus.cmd(CMD_VCOM_DATA_INTERVAL);
   bus.data(_firstRefresh ? kUc8279X3_CdiFirst : kUc8279X3_CdiLater);
   triggerGrayRefresh(bus, turnOff);

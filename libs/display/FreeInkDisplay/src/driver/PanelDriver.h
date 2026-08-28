@@ -133,6 +133,16 @@ class PanelDriver {
   // --- optional, controller-specific hooks (no-op by default) ---
   virtual void requestResync(uint8_t settlePasses) { (void)settlePasses; }
   virtual void skipInitialResync() {}
+  // Pick an alternate grayscale (AA) waveform bank by index; 0 = the driver's
+  // default. Drivers with a single bank ignore it. (CrossMosa v185 bench hook.)
+  virtual void setGrayscaleVariant(uint8_t variant) { (void)variant; }
+  // Which waveform bank the most recent B/W refresh selected: 0 n/a, 1 full/GC,
+  // 2 fast/DU, 3 mid/scrub. Diagnostics only (CrossMosa v185 bench witness).
+  virtual uint8_t lastRefreshBank() const { return 0; }
+  // True when displayGray(factoryMode=true) runs a genuine ABSOLUTE 4-level bank
+  // whose planes are level codes (UC8279 X3 XTH4). Other drivers treat
+  // factoryMode differently (or ignore it) and must not be fed level-coded planes.
+  virtual bool supportsAbsoluteGrayscale() const { return false; }
   virtual void requestCompleteWaveformNextRefresh() {}
   // Interrupted-refresh cutoff tuning (ED2208: where the gate scan freezes).
   virtual void setFastRefreshCutoffMs(uint16_t ms) { (void)ms; }
