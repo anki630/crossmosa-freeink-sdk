@@ -46,6 +46,7 @@ class Uc8279Driver : public PanelDriver {
 
   void requestResync(uint8_t settlePasses) override;
   void skipInitialResync() override;
+  void defuseInitialFulls() override;
   // CrossMosa v185 bench: 0 = kUc8279X3_XtfAa (stock-faithful remap), 1.. =
   // kUc8279X3_XtfAaVariants[variant-1]; out-of-range falls back to 0.
   void setGrayscaleVariant(uint8_t variant) override;

@@ -80,6 +80,7 @@ class Uc8253X3Driver : public PanelDriver {
 
   void requestResync(uint8_t settlePasses) override;
   void skipInitialResync() override;
+  void defuseInitialFulls() override;
   // _half scrub (WW==BW, WB==BB, 50 frames) was the periodic clean of
   // CrossMosa v55–v130 on this glass via the blocking display(); the
   // displayStart/displayFinish async split on this path is unverified.

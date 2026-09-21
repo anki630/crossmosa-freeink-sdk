@@ -225,6 +225,14 @@ void Uc8279Driver::skipInitialResync() {
   _initialFullsRemaining = 0;  // ...so don't force the boot clears
 }
 
+void Uc8279Driver::defuseInitialFulls() {
+  // CrossMosa v316: only the budget. _oldPlaneValid stays false after begin(), so
+  // the first paint still seeds DTM1 white (displayStart) before its GC — the
+  // v312 skipInitialResync() path asserted the OLD plane valid and let the GC diff
+  // against power-on RAM garbage (horizontal streaks, "TV switching on").
+  _initialFullsRemaining = 0;
+}
+
 void Uc8279Driver::deepSleep(EpdBus& bus) {
   if (_isScreenOn) {
     bus.cmd(CMD_POWER_OFF);

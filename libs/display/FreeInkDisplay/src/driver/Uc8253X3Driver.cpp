@@ -480,6 +480,10 @@ void Uc8253X3Driver::skipInitialResync() {
   _redRamSynced = true;
 }
 
+void Uc8253X3Driver::defuseInitialFulls() {
+  _initialFullSyncsRemaining = 0;  // CrossMosa v316: budget only; RED RAM sync state untouched
+}
+
 void Uc8253X3Driver::deepSleep(EpdBus& bus) {
   if (_isScreenOn) {
     bus.cmd(CMD_POWER_OFF);

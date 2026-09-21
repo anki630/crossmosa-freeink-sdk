@@ -133,6 +133,12 @@ class PanelDriver {
   // --- optional, controller-specific hooks (no-op by default) ---
   virtual void requestResync(uint8_t settlePasses) { (void)settlePasses; }
   virtual void skipInitialResync() {}
+  // CrossMosa v316: spend the boot initial-full budget WITHOUT asserting the
+  // panel RAM holds a valid frame. Use when the first paint after power-on is a
+  // one-shot resync (GC) but the logo is skipped: the GC must still seed the OLD
+  // plane (power-on RAM is garbage — it shows as horizontal streaks during the
+  // flash), yet the second paint must not be promoted to another forced GC.
+  virtual void defuseInitialFulls() {}
   // Pick an alternate grayscale (AA) waveform bank by index; 0 = the driver's
   // default. Drivers with a single bank ignore it. (CrossMosa v185 bench hook.)
   virtual void setGrayscaleVariant(uint8_t variant) { (void)variant; }

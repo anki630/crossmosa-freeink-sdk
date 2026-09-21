@@ -858,6 +858,10 @@ void FreeInkDisplay::skipInitialResync() {
   if (_driver) _driver->skipInitialResync();
 }
 
+void FreeInkDisplay::defuseInitialFulls() {
+  if (_driver) _driver->defuseInitialFulls();
+}
+
 void FreeInkDisplay::setGrayscaleVariant(uint8_t variant) {
   if (_driver) _driver->setGrayscaleVariant(variant);
 }
