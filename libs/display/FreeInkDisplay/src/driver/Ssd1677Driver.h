@@ -97,6 +97,12 @@ class Ssd1677Driver : public PanelDriver {
   // promoted single-pass HALF clean in displayImpl/displayWindow.
   void setCustomLut(EpdBus& bus, bool enabled, const unsigned char* data) override;
 
+  // CrossMosa v334: re-arm the begin()-time one-shot clean (see .cpp).
+  void requestResync(uint8_t settlePasses) override;
+  // CrossMosa v334 witness: 1 = clean (HALF/FULL, absolute), 2 = differential FAST.
+  // Same meaning as the X3 drivers' 1=GC / 2=DU; the base returns 0 ("unknown").
+  uint8_t lastRefreshBank() const override { return _lastBank; }
+
  private:
   void initController(EpdBus& bus);
   void setRamArea(EpdBus& bus, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
@@ -127,6 +133,7 @@ class Ssd1677Driver : public PanelDriver {
   // a clean differential baseline. Only armed for boards whose self-powering fast
   // sequence makes _isScreenOn useless as a cold-start signal (fullSeqOverride set).
   bool _needsInitialFull = false;
+  uint8_t _lastBank = 0;  // see lastRefreshBank
 };
 
 // Singleton accessor (Meyers, zero-heap). Selects the config for the active board.

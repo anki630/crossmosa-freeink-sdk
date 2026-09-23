@@ -405,6 +405,7 @@ void Ssd1677Driver::displayImpl(EpdBus& bus, const uint8_t* fb, const uint8_t* p
       mode = RefreshMode::Half;
     }
   }
+  _lastBank = (mode == RefreshMode::Fast) ? 2 : 1;  // CrossMosa v334 witness, after every promotion
 
   setRamArea(bus, 0, 0, _w, _h);
 
@@ -548,6 +549,28 @@ void Ssd1677Driver::displayGray(EpdBus& bus, const uint8_t* fb, bool turnOff, co
   }
 
   setCustomLut(bus, false, nullptr);
+}
+
+// CrossMosa v334: the app's light sleep keeps the controller powered and never calls
+// begin(), so initController() never re-arms _needsInitialFull — yet the panel is
+// physically showing the sleep screen, which no RAM plane describes (after a restored
+// frame, cleanupGrayscaleBuffers() has already made RED == the page). A differential
+// FAST can't clear that: the wake paint comes up dark and fades in over several cursor
+// moves. The app asks for exactly this with requestResync() on wake; arm the same
+// one-shot begin() arms, so the wake paint is the same clean as the first paint after
+// boot (HALF 0xD7 on X4). Only ever sets the flag — never cancels a pending clean.
+// Unconditional, unlike initController()'s arm: an explicit request must be honored on
+// every config (same contract as Uc8179/Uc8279X4's _needFullClear = true). On a config
+// without sequence overrides the consumed flag yields that board's FULL — still a clean.
+// Every config reachable in this build (X4 default, X4 Pro, Sticky) has fullSeqOverride
+// set, so there it is exactly begin()'s arm.
+// _lastBank is cleared so the witness can only report a refresh that ran after this
+// request (displayGray() never sets it — a stale pre-sleep 1 must not pass for a clean).
+// settlePasses is a UC8253 concept; unused here.
+void Ssd1677Driver::requestResync(uint8_t settlePasses) {
+  (void)settlePasses;
+  _needsInitialFull = true;
+  _lastBank = 0;
 }
 
 void Ssd1677Driver::cleanupGrayscaleBuffers(EpdBus& bus, const uint8_t* bw) {
