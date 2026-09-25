@@ -32,6 +32,12 @@ class SDCardManager {
   SDCardManager();
   bool begin();
   bool ready() const;
+  // The card's CID register (16 bytes: manufacturer, OEM, product name and revision, serial number, date) —
+  // CrossMosa v341. Lets a caller that kept its RAM state across a light sleep notice that the card was pulled
+  // or swapped meanwhile: a card that lost power has left SPI mode and does not answer CMD10, another card answers
+  // with another CID. false = not mounted, no answer, or not an SPI card (SDMMC boards: not implemented).
+  // Callers must not log the bytes: the CID carries the card's serial number.
+  bool readCardId(uint8_t out[16]);
   // Returns the total card capacity in bytes. Cached at begin(); 0 if not mounted.
   uint64_t sdTotalBytes() const;
   // Returns used space in bytes, cached with a 20-second TTL (freeClusterCount

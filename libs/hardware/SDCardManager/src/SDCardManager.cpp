@@ -4,6 +4,8 @@
 #include <driver/gpio.h>
 #include <SPI.h>
 
+#include <cstring>
+
 #include "SdmmcBlockDevice.h"  // no-op unless FREEINK_SD_SDMMC
 
 SDCardManager SDCardManager::instance;
@@ -114,6 +116,20 @@ bool SDCardManager::begin() {
   return initialized;
 }
 #endif
+
+bool SDCardManager::readCardId(uint8_t out[16]) {
+#if FREEINK_SD_SDMMC
+  (void)out;
+  return false;
+#else
+  if (out == nullptr || !initialized || sd.card() == nullptr) return false;
+  cid_t cid{};  // zeroed: a partial fill can never leave stale bytes that differ between reads
+  static_assert(sizeof(cid) == 16, "CID register is 16 bytes");
+  if (!sd.card()->readCID(&cid)) return false;
+  memcpy(out, &cid, sizeof(cid));
+  return true;
+#endif
+}
 
 bool SDCardManager::ready() const {
   return initialized;
