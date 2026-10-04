@@ -72,6 +72,13 @@ void holdRailOff(int8_t pin, uint8_t offLevel) {
 
 void PowerManager::powerDownRailsForSleep() {
   const auto& b = BoardConfig::ACTIVE;
+#if FREEINK_DEVICE_METALIO_EINK4
+  if (BoardConfig::isMetalioEInk4()) {
+    metalio::setAmplifier(false);
+    digitalWrite(metalio::VIBRATION_GPIO, LOW);
+    // Keep the shared display/SD rail up, as required by the vendor shutdown.
+  }
+#endif
   holdRailOff(b.display.powerEnable, LOW);
   // SD enable OFF = the inactive level: LOW for active-high enables, HIGH for the
   // active-low ones (e.g. X4 Pro's GPIO5, which powers the card while held LOW).

@@ -1,5 +1,7 @@
 #include "EpdBus.h"
 
+#include <BoardConfig.h>
+
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -44,6 +46,10 @@ void EpdBus::begin(const EpdPins& pins, uint32_t spiHz, BusyPolarity busy, int8_
     digitalWrite(pins.powerEnable, HIGH);
     delay(100);
   }
+#if FREEINK_DEVICE_METALIO_EINK4
+  // Metalio's EPD rail is TCA9555 P0.5 (shared with the SD card), not a GPIO.
+  if (BoardConfig::isMetalioEInk4()) freeink::metalio::ensureBooted();
+#endif
 
   SPI.begin(pins.sclk, spiMiso, pins.mosi, pins.cs);
 
