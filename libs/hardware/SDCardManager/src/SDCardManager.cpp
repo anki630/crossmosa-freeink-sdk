@@ -18,6 +18,10 @@ bool SDCardManager::begin() {
   // SDMMC block device. FsFile from this volume is the same type the SPI path
   // returns, so the public API and consumers are unchanged.
   if (_powerHook) _powerHook();  // board brings up its SD rail (e.g. PMIC) if needed
+#if FREEINK_DEVICE_METALIO_EINK4
+  // The card shares the TCA9555-switched screen/SD rail (P0.5).
+  if (BoardConfig::isMetalioEInk4() && !freeink::metalio::ensureBooted()) return false;
+#endif
   // The SD power-enable (sd.powerEnable) is driven by SdmmcBlockDevice itself, which
   // reproduces the OEM's timed HIGH->LOW power-cycle around each mount attempt — do
   // NOT assert it here (holding it HIGH going in breaks that reset sequence).

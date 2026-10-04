@@ -218,6 +218,10 @@ private:
   void updateTouchFromIrq(unsigned long now,
                           int irqRaw); // CHSC6x I2C poll + touch-bit gate
   void pollGt911(unsigned long now);   // GT911 polled read
+  void beginCst816s();
+  void pollCst816s(unsigned long now); // cover keys only (Metalio)
+  uint8_t cstVirtualButtons = 0;
+  unsigned long cstLastSample = 0;
   bool readChsc6xPoint(TouchPoint &point);
   bool decodeChsc6xFrame(const uint8_t *data, size_t len,
                          TouchPoint &point) const;

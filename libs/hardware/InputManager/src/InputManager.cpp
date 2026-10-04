@@ -67,6 +67,10 @@ InputManager::InputManager()
       confirmPowerPhysicalPressed(false), confirmPowerLongPressActive(false) {}
 
 void InputManager::begin() {
+#if FREEINK_DEVICE_METALIO_EINK4
+  if (BoardConfig::isMetalioEInk4())
+    freeink::metalio::ensureBooted();
+#endif
   if (BoardConfig::ACTIVE.inputStyle ==
       BoardConfig::InputStyle::XteinkAdcLadder) {
     pinMode(BUTTON_ADC_PIN_1, INPUT);
@@ -238,6 +242,16 @@ bool InputManager::isDigitalPressed(const int8_t pin) const {
 
 uint8_t InputManager::getDigitalState() const {
   uint8_t state = 0;
+#if FREEINK_DEVICE_METALIO_EINK4
+  if (BoardConfig::isMetalioEInk4()) {
+    // Volume keys on the TCA9555, active low: + is page back, - is forward.
+    const uint16_t pins = freeink::metalio::readButtons();
+    if (!(pins & (1u << freeink::metalio::PIN_VOLUME_UP)))
+      state |= (1 << BTN_UP);
+    if (!(pins & (1u << freeink::metalio::PIN_VOLUME_DOWN)))
+      state |= (1 << BTN_DOWN);
+  }
+#endif
 
   if (BoardConfig::ACTIVE.inputStyle !=
           BoardConfig::InputStyle::DigitalConfirmBackHold &&
@@ -669,6 +683,10 @@ void InputManager::beginTouch() {
   if (t.controller == BoardConfig::TouchController::None) {
     return;
   }
+  if (t.controller == BoardConfig::TouchController::Cst816s) {
+    beginCst816s();
+    return;
+  }
   if (t.controller == BoardConfig::TouchController::Gt911) {
     beginGt911();
     return;
@@ -692,6 +710,10 @@ uint8_t InputManager::serviceTouch() {
   const unsigned long now = millis();
   const auto &t = BoardConfig::ACTIVE.touch;
 
+  if (t.controller == BoardConfig::TouchController::Cst816s) {
+    pollCst816s(now);
+    return cstVirtualButtons;
+  }
   if (t.controller == BoardConfig::TouchController::Gt911) {
     pollGt911(now);
   } else {
@@ -814,6 +836,112 @@ uint16_t InputManager::mapTouchAxis(uint16_t raw, const uint16_t rawMin,
     return outMax;
   return static_cast<uint32_t>(raw - rawMin) * outMax / (rawMax - rawMin);
 }
+
+// --- CST816S (Metalio) -----------------------------------------------------
+
+#if FREEINK_CAP_TOUCH
+// CST816S cover keys (Metalio E-Ink 4). Ported from Free-Ink/freeink-sdk
+// 5d3b5cd, reduced to the three printed keys below the panel: CrossMosa is a
+// button-driven UI, so on-screen contacts are ignored. The keys take the X4
+// front-button roles: HOME = BACK, the two pills = LEFT / RIGHT (tabs, list
+// and page navigation); BOOT = confirm, volume +/- = UP / DOWN.
+// The CST816S can NACK until the first touch: never gate on an ID probe.
+namespace {
+volatile bool cstInterrupt = false;
+void IRAM_ATTR cstTouchInterrupt() { cstInterrupt = true; }
+
+bool cst816sReadPoint(uint8_t addr, uint8_t *data, uint8_t len) {
+  Wire.beginTransmission(addr);
+  Wire.write(0x02); // finger count, then XH XL YH YL
+  if (Wire.endTransmission(false) != 0)
+    return false;
+  if (Wire.requestFrom(addr, len, uint8_t(true)) != len)
+    return false;
+  for (uint8_t i = 0; i < len; ++i)
+    data[i] = Wire.read();
+  return true;
+}
+} // namespace
+
+void InputManager::beginCst816s() {
+  const auto &t = BoardConfig::ACTIVE.touch;
+#if FREEINK_DEVICE_METALIO_EINK4
+  if (BoardConfig::isMetalioEInk4() && !freeink::metalio::ensureBooted())
+    return;
+#endif
+  if (t.sda < 0 || t.scl < 0 || !t.i2cAddress)
+    return;
+  if (!Wire.begin(t.sda, t.scl, 400000))
+    return;
+  Wire.setTimeOut(10);
+  cstVirtualButtons = 0;
+  cstInterrupt = false;
+  if (t.irq >= 0) {
+    pinMode(t.irq, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(t.irq), cstTouchInterrupt, FALLING);
+  }
+  touchDataEnabled = true;
+}
+
+void InputManager::pollCst816s(const unsigned long now) {
+  const auto &t = BoardConfig::ACTIVE.touch;
+  if (now < touchReadAt)
+    return;
+  touchReadAt = now + TOUCH_SAMPLE_DELAY_MS;
+  const bool active = cstVirtualButtons != 0 || touchPressed;
+  const bool fresh = cstInterrupt || t.irq < 0 || digitalRead(t.irq) == LOW;
+  if (!active && !fresh)
+    return;
+  cstInterrupt = false;
+  const auto release = [&]() {
+    if (touchPressed) {
+      touchPressed = false;
+      touchPoint.valid = false;
+      touchReleasedEvent = true;
+      lastTouchHeldDurationMs = now - touchDownPoint.timestamp;
+    }
+    cstVirtualButtons = 0;
+  };
+  // Re-reading the CST816S can return the last sample after its event ends,
+  // and it goes silent after release: never latch a key on a stale read.
+  if (active && !fresh && now - cstLastSample >= 100) {
+    release();
+    return;
+  }
+  uint8_t data[5] = {};
+  if (!cst816sReadPoint(t.i2cAddress, data, sizeof(data))) {
+    if (active && now - cstLastSample >= 100)
+      release();
+    return;
+  }
+  if (fresh)
+    cstLastSample = now;
+  if (!(data[0] & 0x0F) || (data[1] >> 6) == 1) { // no finger / lift-up
+    release();
+    return;
+  }
+  const uint16_t rawX = ((data[1] & 0x0F) << 8) | data[2];
+  const uint16_t rawY = ((data[3] & 0x0F) << 8) | data[4];
+  if (rawY < 800) {
+    if (cstVirtualButtons)
+      release();
+    return;
+  }
+  // Vendor cover key centers (portrait digitizer): HOME=(80,900),
+  // NEXT=(240,900), PREV=(400,900). Off-panel samples outside the key
+  // strip are ignored rather than clamped into screen taps.
+  if (rawY < 860 || rawY > 940 || rawX > 479) {
+    release();
+    return;
+  }
+  if (touchPressed)
+    release();
+  if (rawX < 160)
+    cstVirtualButtons = 1 << BTN_BACK;
+  else
+    cstVirtualButtons = 1 << (rawX < 320 ? BTN_LEFT : BTN_RIGHT);
+}
+#endif
 
 // --- GT911 (LilyGo) ---------------------------------------------------------
 
