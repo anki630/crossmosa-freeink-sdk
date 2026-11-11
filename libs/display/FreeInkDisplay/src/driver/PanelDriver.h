@@ -145,6 +145,15 @@ class PanelDriver {
   // Which waveform bank the most recent B/W refresh selected: 0 n/a, 1 full/GC,
   // 2 fast/DU, 3 mid/scrub. Diagnostics only (CrossMosa v185 bench witness).
   virtual uint8_t lastRefreshBank() const { return 0; }
+  // Witness for grayscale refreshes (CrossMosa v401 bench): grayRefreshCount()
+  // counts displayGray() calls that actually loaded a bank and triggered the
+  // refresh (early returns leave it unchanged); lastGrayTable() names the bank:
+  // 0 n/a, 1 AA nudge (XTF_AA), 2 stock XTH4 absolute, 3 caller-supplied lut.
+  virtual uint32_t grayRefreshCount() const { return 0; }
+  virtual uint8_t lastGrayTable() const { return 0; }
+  // How long the last grayscale DRF kept BUSY asserted (ms); 0 = BUSY never
+  // asserted (the refresh did not start), >= 30000 = the wait gave up.
+  virtual uint32_t lastGrayDrfMs() const { return 0; }
   // True when displayGray(factoryMode=true) runs a genuine ABSOLUTE 4-level bank
   // whose planes are level codes (UC8279 X3 XTH4). Other drivers treat
   // factoryMode differently (or ignore it) and must not be fed level-coded planes.

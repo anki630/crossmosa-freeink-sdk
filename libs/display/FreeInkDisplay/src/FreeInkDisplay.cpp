@@ -867,6 +867,9 @@ void FreeInkDisplay::setGrayscaleVariant(uint8_t variant) {
 }
 
 uint8_t FreeInkDisplay::lastRefreshBank() const { return _driver ? _driver->lastRefreshBank() : 0; }
+uint32_t FreeInkDisplay::grayRefreshCount() const { return _driver ? _driver->grayRefreshCount() : 0; }
+uint8_t FreeInkDisplay::lastGrayTable() const { return _driver ? _driver->lastGrayTable() : 0; }
+uint32_t FreeInkDisplay::lastGrayDrfMs() const { return _driver ? _driver->lastGrayDrfMs() : 0; }
 
 bool FreeInkDisplay::supportsAbsoluteGrayscale() const { return _driver && _driver->supportsAbsoluteGrayscale(); }
 

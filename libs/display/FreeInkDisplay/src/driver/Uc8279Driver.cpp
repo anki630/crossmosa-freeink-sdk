@@ -94,6 +94,7 @@ void Uc8279Driver::triggerGrayRefresh(EpdBus& bus, bool turnOff) {
   }
   bus.cmd(CMD_DISPLAY_REFRESH);
   bus.waitBusy(" 8279_gray_DRF");
+  _lastGrayDrfMs = bus.lastWaitSawBusy() ? bus.lastWaitMs() : 0;  // v401 witness: 0 = BUSY never asserted
   if (turnOff) {
     bus.cmd(CMD_POWER_OFF);
     bus.waitBusy(" 8279_gray_POF");
@@ -304,7 +305,10 @@ void Uc8279Driver::writeGrayscalePlaneStrip(EpdBus& bus, GrayPlane plane, const 
 void Uc8279Driver::displayGray(EpdBus& bus, const uint8_t* fb, bool turnOff, const unsigned char* lut,
                                bool factoryMode) {
   (void)fb;
-  (void)lut;  // waveform is a built-in bank (XTF_AA nudge, or XTH4 absolute)
+  // lut: ignored by the AA path. In factoryMode a non-null lut is a raw 5x49
+  // bank used INSTEAD of XTH4 (CrossMosa v401 bench: XTH4 with its reset
+  // phases idled; the candidate table lives in the app's bench code). The
+  // planes keep the XTH4 level code either way.
   if (!_lsbValid) return;
   // Differential grayscale leaves the gray bank/planes loaded, so the next B/W
   // turn must revert first. factoryMode = the stock XTH4 ABSOLUTE 4-gray bank
@@ -318,8 +322,13 @@ void Uc8279Driver::displayGray(EpdBus& bus, const uint8_t* fb, bool turnOff, con
   // The refresh MUST run in the partial window (like the plane writes); also
   // resets PTL to full after any per-strip writeGrayscalePlaneStrip windows.
   grayWindowIn(bus);
-  if (factoryMode) {
+  uint8_t table = 1;
+  if (factoryMode && lut) {
+    loadRawBank(bus, reinterpret_cast<const uint8_t (*)[49]>(lut));
+    table = 3;
+  } else if (factoryMode) {
     loadRawBank(bus, kUc8279X3_Xth4);
+    table = 2;
   } else {
     loadXtfAa(bus);
   }
@@ -327,6 +336,8 @@ void Uc8279Driver::displayGray(EpdBus& bus, const uint8_t* fb, bool turnOff, con
   bus.data(_firstRefresh ? kUc8279X3_CdiFirst : kUc8279X3_CdiLater);
   triggerGrayRefresh(bus, turnOff);
   bus.cmd(CMD_PARTIAL_OUT);
+  _grayCount++;
+  _lastGrayTable = table;
 
   _firstRefresh = false;
   _oldPlaneValid = false;  // gray planes overwrote DTM1/DTM2 — next B/W needs a rebase/clear

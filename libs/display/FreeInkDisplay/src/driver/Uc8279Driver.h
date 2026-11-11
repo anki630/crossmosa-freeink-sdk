@@ -51,6 +51,9 @@ class Uc8279Driver : public PanelDriver {
   // kUc8279X3_XtfAaVariants[variant-1]; out-of-range falls back to 0.
   void setGrayscaleVariant(uint8_t variant) override;
   uint8_t lastRefreshBank() const override { return _lastBank; }
+  uint32_t grayRefreshCount() const override { return _grayCount; }
+  uint8_t lastGrayTable() const override { return _lastGrayTable; }
+  uint32_t lastGrayDrfMs() const override { return _lastGrayDrfMs; }
   bool supportsAbsoluteGrayscale() const override { return true; }
 
   // --- 4-level grayscale / anti-aliasing (mirrors the UC8253 X3 sibling) ---
@@ -109,6 +112,9 @@ class Uc8279Driver : public PanelDriver {
   bool _lsbValid = false;
   uint8_t _aaVariant = 0;  // see setGrayscaleVariant
   uint8_t _lastBank = 0;   // see lastRefreshBank
+  uint32_t _grayCount = 0;      // see grayRefreshCount
+  uint8_t _lastGrayTable = 0;   // see lastGrayTable
+  uint32_t _lastGrayDrfMs = 0;  // see lastGrayDrfMs
 
   // Async split state (see Uc8253X3Driver for the contract).
   bool _pendingRefresh = false;

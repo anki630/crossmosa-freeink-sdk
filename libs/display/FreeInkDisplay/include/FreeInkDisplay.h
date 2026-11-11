@@ -214,6 +214,9 @@ class FreeInkDisplay {
   void setGrayscaleVariant(uint8_t variant);
   // Bank used by the most recent B/W refresh (0 n/a, 1 GC, 2 DU, 3 mid/scrub).
   uint8_t lastRefreshBank() const;
+  uint32_t grayRefreshCount() const;  // CrossMosa v401 bench witness (PanelDriver)
+  uint8_t lastGrayTable() const;
+  uint32_t lastGrayDrfMs() const;
   // displayGrayBuffer(..., factoryMode=true) is a real absolute 4-level path here.
   bool supportsAbsoluteGrayscale() const;
   // Panel driver vouches for its no-resync Half as the periodic ghost clean.

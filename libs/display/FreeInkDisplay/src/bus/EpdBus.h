@@ -106,6 +106,10 @@ class EpdBus {
   const EpdPins& pins() const { return _pins; }
   uint32_t spiHz() const { return _spiHz; }
   BusyPolarity busyPolarity() const { return _busy; }
+  // The most recent waitBusy(): whether BUSY ever asserted, and how long the wait took
+  // (>= 30000 = gave up). Diagnostics only (CrossMosa v401 bench witness).
+  bool lastWaitSawBusy() const { return _lastWaitSawBusy; }
+  uint32_t lastWaitMs() const { return _lastWaitMs; }
 
  private:
   // Busy-wait hooks (see setBusyWaitHooks / setBusyWaitSliceHook)
@@ -124,6 +128,8 @@ class EpdBus {
   }
 
   EpdPins _pins{-1, -1, -1, -1, -1, -1};
+  bool _lastWaitSawBusy = false;
+  uint32_t _lastWaitMs = 0;
   SPISettings _spi;
   BusyPolarity _busy = BusyPolarity::ActiveHigh;
   uint32_t _spiHz = 40000000;

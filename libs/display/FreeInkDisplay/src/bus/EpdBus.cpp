@@ -155,9 +155,11 @@ void EpdBus::waitBusy(BusyPolarity p, const char* tag) {
   bool longWait = false;
   bool hookFired = false;
   bool x3SawLow = false;
+  bool sawBusy = false;  // CrossMosa v401 witness: did BUSY ever assert during this wait?
 
   if (p == BusyPolarity::ActiveHigh) {
     while (digitalRead(_pins.busy) == HIGH) {
+      sawBusy = true;
       busyIdle(longWait, HIGH, 1);
       if (!longWait && millis() - start > BUSY_WAIT_HOOK_THRESHOLD_MS) {
         longWait = true;
@@ -179,6 +181,7 @@ void EpdBus::waitBusy(BusyPolarity p, const char* tag) {
         delay(1);
       }
     }
+    sawBusy = busy;
     if (busy) {
       do {
         busyIdle(longWait, LOW, 10);
@@ -214,6 +217,9 @@ void EpdBus::waitBusy(BusyPolarity p, const char* tag) {
   }
 
   if (hookFired && _busyWaitEndHook != nullptr) _busyWaitEndHook();
+  if (p == BusyPolarity::X3TwoPhase) sawBusy = x3SawLow;
+  _lastWaitSawBusy = sawBusy;
+  _lastWaitMs = static_cast<uint32_t>(millis() - start);
   if (p == BusyPolarity::X3TwoPhase && !x3SawLow) return;
 
   if (tag && Serial) {
